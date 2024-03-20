@@ -30,7 +30,7 @@
         function connect() {
             wss://simregpoc.mtnnigeria.net:8443/biocapture/mdm/socket-connection?deviceId=HP-5CD1460D5P&email=12123123212
             // var host = "http://localhost:8080";
-            var host = "https://915b-102-89-45-140.ngrok-free.app";
+            var host = "https://simregpoc.mtnnigeria.net:8443";
             var socketPath = "/biocapture/mdm/socket-connection";
             var baseUrl = host + socketPath;
             var socket = new SockJS(`${baseUrl}?deviceId=${deviceId}&email=${email}`);
