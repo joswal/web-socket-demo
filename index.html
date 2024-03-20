@@ -1,0 +1,141 @@
+<html>
+
+<head>
+    <title>Chat WebSocket</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.1.4/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script type="text/javascript">
+        var stompClient = null;
+
+        var deviceId = "HP-5CG01531DA";
+        var email = "toyewole@seamfix.com";
+
+        var privateChannel = deviceId + "_" + email;
+
+        var headers = {
+            "agent-email-address": "toyewole@seamfix.com",
+            "agent-id": "12123123212",
+            "app-version": "4.90",
+            "saved-device-id": "HP-5CG01531DZ",
+        }
+
+        function setConnected(connected) {
+            document.getElementById('connect').disabled = connected;
+            document.getElementById('disconnect').disabled = !connected;
+            document.getElementById('conversationDiv').style.visibility
+                = connected ? 'visible' : 'hidden';
+            document.getElementById('response').innerHTML = '';
+        }
+
+        function connect() {
+            wss://simregpoc.mtnnigeria.net:8443/biocapture/mdm/socket-connection?deviceId=HP-5CD1460D5P&email=12123123212
+            // var host = "http://localhost:8080";
+            var host = "https://915b-102-89-45-140.ngrok-free.app";
+            var socketPath = "/biocapture/mdm/socket-connection";
+            var baseUrl = host + socketPath;
+            var socket = new SockJS(`${baseUrl}?deviceId=${deviceId}&email=${email}`);
+            stompClient = Stomp.over(socket);
+            stompClient.connect(headers, function (frame) {
+
+                //get the auto-generated session id
+                var url = stompClient.ws._transport.url || "";
+                var partialUrl = url.split("/websocket")[0];
+                var urlIdParamsList = partialUrl.split(socketPath + "/")[1];
+                var sessionId = urlIdParamsList.split("/")[1]
+                console.log("Your current session id is: " + sessionId);
+
+                setConnected(true);
+                console.log('Connected: ' + frame);
+
+                //listen too all publicly broadcasted messages
+
+                stompClient.subscribe('/topic/messages', function (messageOutput) {
+                    showMessageOutput(JSON.parse(messageOutput.body));
+                });
+
+
+                //listen to all messages sent to the topic belnging to this user(agent)
+
+                stompClient.subscribe('/topic/user-messages-' + email, function (messageOutput) {
+                    console.log('got here');
+                    console.log(messageOutput);
+                });
+
+                //listen to all messages sent to the topic belnging to this device
+                stompClient.subscribe('/topic/device-messages-' + deviceId, function (messageOutput) {
+                    console.log('got here');
+                    console.log(messageOutput);
+                });
+
+
+                var userId = 'user' + sessionId;
+                console.log('User id is: ' + userId);
+                var privateSubPath = '/user/queue/specific';
+                var privateSubChannel = privateSubPath + "-" + userId;
+
+
+                //listen to all messages sent specifically to this user using the username to identify
+                stompClient.subscribe(privateSubPath, function (messageOutput) {
+                    console.log('got here');
+                    console.log(messageOutput);
+
+                    // showMessageOutput(JSON.parse(messageOutput.body));
+                });
+            });
+        }
+
+        function disconnect() {
+            if (stompClient != null) {
+                stompClient.disconnect();
+            }
+            setConnected(false);
+            console.log("Disconnected");
+        }
+
+        function sendMessage() {
+            var from = document.getElementById('from').value;
+            var text = document.getElementById('text').value;
+            var to = document.getElementById('to').value;
+
+            var sendDestination = to ? "/client-notification/chat/private" : "/client-notification/chat"
+            stompClient.send(sendDestination, {},
+                JSON.stringify({ 'from': from, 'text': text, to }));
+        }
+
+        function showMessageOutput(messageOutput) {
+            var response = document.getElementById('response');
+            var p = document.createElement('p');
+            p.style.wordWrap = 'break-word';
+            p.appendChild(document.createTextNode(messageOutput.from + ": "
+                + messageOutput.text + " (" + messageOutput.time + ")"));
+            response.appendChild(p);
+        }
+    </script>
+</head>
+
+<body onload="disconnect()">
+    <div>
+        <div>
+            <input type="text" id="from" placeholder="Choose a nickname" />
+        </div>
+        <br />
+        <div>
+            <button id="connect" onclick="connect();">Connect</button>
+            <button id="disconnect" disabled="disabled" onclick="disconnect();">
+                Disconnect
+            </button>
+        </div>
+        <br />
+        <div id="conversationDiv">
+            <div>
+                <input type="text" id="to" placeholder="send to" />
+            </div>
+            <input type="text" id="text" placeholder="Write a message..." />
+            <button id="sendMessage" onclick="sendMessage();">Send</button>
+            <p id="response"></p>
+        </div>
+    </div>
+
+</body>
+
+</html>
